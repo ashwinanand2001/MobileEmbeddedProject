@@ -10,12 +10,18 @@ from tensorflow import keras
 from keras.preprocessing.sequence import pad_sequences
 from keras.models import Sequential
 from keras.layers import Conv1D, MaxPooling1D, Flatten, Dense
+from sklearn.model_selection import train_test_split
+from sklearn.preprocessing import LabelEncoder
+from keras.utils import to_categorical
 import glob
 import os
 import csv
 import math
 
-def read_sensor_data(signer = ''):
+num_epochs = 20
+batch_size = 5
+
+def read_sensor_data(signer = '', create_new_file = False):
     #reading the files in directory
     inp_data = os.listdir(path="/Users/skan/Documents/VSCode/MobileEmbeddedProject/SignatureData")
 
@@ -35,8 +41,8 @@ def read_sensor_data(signer = ''):
         df = trim_sensor_data(df)
         sensor_data.append(df)
         signers.append(file.split(".")[0].rstrip('0123456789'))
-
-    create_sig_meta_file(sensor_data, signers)
+    if(create_new_file):
+        create_sig_meta_file(sensor_data, signers)
     return [sensor_data, signers]
 
 def create_sig_meta_file(sensor_data, signers):
@@ -95,8 +101,8 @@ def predictSignature(file):
     meta_data.set_index('Name', inplace=True)
     #print(meta_data)
     #print(signer)
-    if meanSigLength > meta_data.loc[signer]["Mean Signature Length"] + 2*meta_data.loc[signer]["Avg STD Deviation Length"] \
-        or meanSigLength < meta_data.loc[signer]["Mean Signature Length"] - 2*meta_data.loc[signer]["Avg STD Deviation Length"]:
+    if meanSigLength > meta_data.loc[signer]["Mean Signature Length"] + meta_data.loc[signer]["Avg STD Deviation Length"] \
+        or meanSigLength < meta_data.loc[signer]["Mean Signature Length"] - meta_data.loc[signer]["Avg STD Deviation Length"]:
         return "User Authentication Failed"
     
 
@@ -106,10 +112,19 @@ def predictSignature(file):
 
 
 def train_model(x_train, y_train):
-    sequence_length = x_train[0].shape[0]  # Adjust based on your data
-    num_features = x_train[0].shape[1]
-    x_train_reshaped = x_train.reshape((x_train.shape[0], sequence_length, num_features))
-    num_classes = 1
+    sequence_length = 3000  # Adjust based on your data
+    num_features = 9
+    # for df in x_train:
+    #     df.reshape((df.shape[0], sequence_length, num_features))
+    #x_train_reshaped = x_train.reshape((x_train.shape[0], sequence_length, num_features))
+    num_classes = 4
+
+    label_encoder = LabelEncoder()
+    y_encoded = label_encoder.fit_transform(y_train)
+
+    # Convert numerical labels to one-hot encoded format
+    num_classes = len(label_encoder.classes_)
+    y_onehot = to_categorical(y_encoded, num_classes=num_classes)
 
     model = Sequential()
     model.add(Conv1D(32, kernel_size=3, activation='relu', input_shape=(sequence_length, num_features)))
@@ -119,7 +134,7 @@ def train_model(x_train, y_train):
     model.add(Dense(num_classes, activation='softmax'))
 
     model.compile(optimizer='adam', loss='categorical_crossentropy', metrics=['accuracy'])
-    model.fit(x_train_reshaped, y_train, epochs=num_epochs, batch_size=batch_size, validation_split=0.2, verbose=2)
+    model.fit(x_train, y_onehot, epochs=num_epochs, batch_size=batch_size, validation_split=0.2, verbose=2)
 
     return model
 
@@ -146,7 +161,7 @@ def extractWavelets(df):
 
 
 def find_start_end(roc):
-    #print(len(roc))
+    print(len(roc))
     for i in range(0,len(roc)):
         if roc[i] > .5:
             start = i
@@ -182,20 +197,21 @@ def average_roc(df):
     # plt.show()
     return d_total
 
-#[sensor_data, signers] = read_sensor_data()
 
-print(predictSignature("Skandan11.csv"))
+
+print(predictSignature("Skandan13.csv"))
 
 #split input data into training and test data - 50% split
+# [sensor_data, signers] = read_sensor_data()
 # splitPercent = .5
-# index = splitPercent*len(sensor_data) #same for x_traina and y_train
+# index = int(splitPercent*len(sensor_data)) #same for x_train and y_train
 # x_train = sensor_data[0:index]
 # y_train = signers[0:index]
 # x_test = sensor_data[index+1:len(sensor_data)-1]
 # y_test = signers[index+1:len(sensor_data)-1]
 
-#train model
-#train_model()
+# #train model
+# train_model(x_train, y_train)
 
 
 # df = pd.read_csv("Skandan1.csv")

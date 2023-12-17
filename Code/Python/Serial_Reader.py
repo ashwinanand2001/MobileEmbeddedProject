@@ -20,7 +20,7 @@ for p in port:
 ser = serial.Serial('/dev/cu.usbmodem1101', 9600)  # Change 'COM3' to the appropriate port
 
 # Create CSV file for data
-with open('Skandan10.csv', 'w', newline='') as csvfile:
+with open('Skandan13.csv', 'w', newline='') as csvfile:
     csv_writer = csv.writer(csvfile)
     csv_writer.writerow(['xAccel', 'yAccel', 'zAccel', 'xGyro', 'yGyro', 'zGyro', 'xMag', 'yMag', 'zMag'])  # Add more headers if needed
 
