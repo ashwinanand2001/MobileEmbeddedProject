@@ -23,7 +23,7 @@ batch_size = 5
 
 def read_sensor_data(signer = '', create_new_file = False):
     #reading the files in directory
-    inp_data = os.listdir(path="/Users/skan/Documents/VSCode/MobileEmbeddedProject/SignatureData")
+    inp_data = os.listdir(path="/usr/fabio/UNIVERSITY/EMBEDDED/MobileEmbeddedProject/SignatureData")
 
     for val in inp_data:
         if ".csv" not in val:
@@ -36,7 +36,7 @@ def read_sensor_data(signer = '', create_new_file = False):
     signers = []
 
     for file in inp_data:
-        df = pd.read_csv(os.path.join("/Users/skan/Documents/VSCode/MobileEmbeddedProject/SignatureData/", file))
+        df = pd.read_csv(os.path.join("/usr/fabio/UNIVERSITY/EMBEDDED/MobileEmbeddedProject/SignatureData/", file))
         df.apply(pd.to_numeric)
         df = trim_sensor_data(df)
         sensor_data.append(df)
@@ -85,7 +85,7 @@ def standard_deviation_signature_length(x_values, numValues):
 
 def predictSignature(file):
     
-    inp_data = os.path.join("/Users/skan/Documents/VSCode/MobileEmbeddedProject/SignatureData/",file)
+    inp_data = os.path.join("/usr/fabio/UNIVERSITY/EMBEDDED/MobileEmbeddedProject/SignatureData/",file)
 
     # if ".csv" not in inp_data:
     #     inp_data.remove(val)
