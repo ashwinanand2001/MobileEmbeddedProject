@@ -23,7 +23,7 @@ batch_size = 5
 
 def read_sensor_data(signer = '', create_new_file = False):
     #reading the files in directory
-    inp_data = os.listdir(path="/Users/skan/Documents/VSCode/MobileEmbeddedProject/SignatureData")
+    inp_data = os.listdir(path="/Users/skan/Documents/GitHub/MobileEmbeddedProject/SignatureData")
 
     for val in inp_data:
         if ".csv" not in val:
@@ -36,7 +36,7 @@ def read_sensor_data(signer = '', create_new_file = False):
     signers = []
 
     for file in inp_data:
-        df = pd.read_csv(os.path.join("/Users/skan/Documents/VSCode/MobileEmbeddedProject/SignatureData/", file))
+        df = pd.read_csv(os.path.join("/Users/skan/Documents/GitHub/MobileEmbeddedProject/SignatureData/", file))
         df.apply(pd.to_numeric)
         df = trim_sensor_data(df)
         sensor_data.append(df)
@@ -85,7 +85,7 @@ def standard_deviation_signature_length(x_values, numValues):
 
 def predictSignature(file):
     
-    inp_data = os.path.join("/Users/skan/Documents/VSCode/MobileEmbeddedProject/SignatureData/",file)
+    inp_data = os.path.join("/Users/skan/Documents/GitHub/MobileEmbeddedProject/SignatureData/",file)
 
     # if ".csv" not in inp_data:
     #     inp_data.remove(val)
@@ -114,29 +114,36 @@ def predictSignature(file):
 def train_model(x_train, y_train):
     sequence_length = 3000  # Adjust based on your data
     num_features = 9
-    # for df in x_train:
-    #     df.reshape((df.shape[0], sequence_length, num_features))
-    #x_train_reshaped = x_train.reshape((x_train.shape[0], sequence_length, num_features))
     num_classes = 4
 
+    # Flatten each dataframe and then pad
+    x_train_flattened = [df.values.flatten() for df in x_train]
+    x_train_processed = pad_sequences(x_train_flattened, maxlen=sequence_length * num_features, padding='post')
+
+    # Ensure y_train is a numpy array with matching length
+    y_train_processed = np.array(y_train)
+
     label_encoder = LabelEncoder()
-    y_encoded = label_encoder.fit_transform(y_train)
+    y_encoded = label_encoder.fit_transform(y_train_processed)
 
     # Convert numerical labels to one-hot encoded format
     num_classes = len(label_encoder.classes_)
     y_onehot = to_categorical(y_encoded, num_classes=num_classes)
 
+    # Define the model
     model = Sequential()
-    model.add(Conv1D(32, kernel_size=3, activation='relu', input_shape=(sequence_length, num_features)))
+    # Adjust the input shape accordingly
+    model.add(Conv1D(32, kernel_size=3, activation='relu', input_shape=(sequence_length * num_features, 1)))
     model.add(MaxPooling1D(pool_size=2))
     model.add(Flatten())
     model.add(Dense(64, activation='relu'))
     model.add(Dense(num_classes, activation='softmax'))
 
     model.compile(optimizer='adam', loss='categorical_crossentropy', metrics=['accuracy'])
-    model.fit(x_train, y_onehot, epochs=num_epochs, batch_size=batch_size, validation_split=0.2, verbose=2)
+    model.fit(x_train_processed, y_onehot, epochs=num_epochs, batch_size=batch_size, validation_split=0.2, verbose=2)
 
     return model
+
 
 def smoothData(df):
     window_size = 10
@@ -197,30 +204,78 @@ def average_roc(df):
     # plt.show()
     return d_total
 
+# Global LabelEncoder
+label_encoder = LabelEncoder()
+label_encoder.fit(signers)  # Assuming 'signers' contains all possible labels
+
+def evaluate_model(model, x_test, y_test):
+    sequence_length = 3000  # Adjust based on your data
+    num_features = 9
+
+    # Flatten each dataframe and then pad
+    x_test_flattened = [df.values.flatten() for df in x_test]
+    x_test_processed = pad_sequences(x_test_flattened, maxlen=sequence_length * num_features, padding='post')
+
+    # Encode y_test just like y_train
+    label_encoder = LabelEncoder()
+    y_test_encoded = label_encoder.fit_transform(y_test)
+    y_test_onehot = to_categorical(y_test_encoded, num_classes=len(label_encoder.classes_))
+
+    # Evaluate the model
+    scores = model.evaluate(x_test_processed, y_test_onehot, verbose=1)
+    print(f"Test Loss: {scores[0]}")
+    print(f"Test Accuracy: {scores[1]}")
+
+    # Optionally: Make predictions
+    predictions = model.predict(x_test_processed)
+    # ... (analyze predictions as needed)
+
+    return scores, predictions
 
 
-print(predictSignature("Skandan13.csv"))
+#print(predictSignature("Skandan13.csv"))
 
 #split input data into training and test data - 50% split
-# [sensor_data, signers] = read_sensor_data()
-# splitPercent = .5
-# index = int(splitPercent*len(sensor_data)) #same for x_train and y_train
-# x_train = sensor_data[0:index]
-# y_train = signers[0:index]
-# x_test = sensor_data[index+1:len(sensor_data)-1]
-# y_test = signers[index+1:len(sensor_data)-1]
+[sensor_data, signers] = read_sensor_data()
+splitPercent = .5
+index = int(splitPercent*len(sensor_data)) #same for x_train and y_train
+x_train = sensor_data[0:index]
+y_train = signers[0:index]
+x_test = sensor_data[index+1:len(sensor_data)-1]
+y_test = signers[index+1:len(sensor_data)-1]
 
-# #train model
-# train_model(x_train, y_train)
+# Debugging prints
+print("Size of x_train:", len(x_train))
+print("Size of y_train:", len(y_train))
+print("Size of x_test:", len(x_test))
+print("Size of y_test:", len(y_test))
+
+# Additional debugging prints to check data consistency
+for i, x_data in enumerate(x_train):
+    print(f"Size of x_train[{i}]:", x_data.shape)
+
+#train model
+print("Training model...")
+
+#train model
+train_model(x_train, y_train)
+model = train_model(x_train, y_train)
+print("Model training completed.")
+
+# Debugging prints
+print("Size of x_train after training:", len(x_train))
+print("Size of y_train after training:", len(y_train))
+
+scores, predictions = evaluate_model(model, x_test, y_test)
 
 
-# df = pd.read_csv("Skandan1.csv")
+# df = pd.read_csv("/Users/skan/Documents/GitHub/MobileEmbeddedProject/SignatureData/Skandan2.csv")
 # df.apply(pd.to_numeric)
 # d_total = average_roc(df)
 # [start, end] = find_start_end(d_total)
 # df = smoothData(df)
-# df.iloc[start:end].plot()
-# df = df.iloc[start:end]
+# df.plot()
+#df = df.iloc[start:end]
 # plt.show()
 
 #[df_x_accel_coeffs, df_accel_coeffs, df_z_accel_coeffs, df_x_gyro_coeffs, df_y_gyro_coeffs, df_z_gyro_coeffs, df_x_mag_coeffs, df_y_mag_coeffs, df_z_mag_coeffs] = extractWavelets(df)
